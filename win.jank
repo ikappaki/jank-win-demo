@@ -1,0 +1,91 @@
+;; Jank windows native demo with bouncing text
+
+(include "./win.hpp")
+
+(def state* (atom {:clicks 0 :x 50 :y 50 :dx 2 :dy 1}))
+
+(defn wndproc [^cpp/HWND hwnd ^cpp/UINT msg ^cpp/WPARAM wParam ^cpp/LPARAM lParam]
+  (let [hwnd (cpp/unbox cpp/HWND hwnd)]
+    (cond
+      (= msg cpp/WM_PAINT)
+      (let [ps (cpp/PAINTSTRUCT.)
+            hdc (cpp/w32.BeginPaint hwnd (cpp/& ps))
+            {:keys [bg-rgb x y] :as state} @state*
+            text (str "Welcome to Jank! " state)]
+        (when bg-rgb
+          (cpp/w32.SetTextColor hdc bg-rgb))
+        (cpp/w32.TextOutA hdc x y (.c_str (cpp/cast cpp/std.string text)) (count text))
+        (cpp/w32.EndPaint hwnd (cpp/& ps))
+        0)
+
+      (= msg cpp/WM_TIMER)
+      (do
+        (swap! state*
+               (fn [{:keys [x y dx dy] :as state}]
+                 (let [nx (+ x dx)
+                       ny (+ y dy)
+                       ndx (if (or (< nx 0) (> nx 400)) (- dx) dx)
+                       ndy (if (or (< ny 0) (> ny 550)) (- dy) dy)]
+                   (merge state {:x (+ x ndx) :y (+ y ndy) :dx ndx :dy ndy}))))
+        (cpp/w32.InvalidateRect hwnd cpp/nullptr 1)
+        0)
+      (= msg cpp/WM_LBUTTONDOWN)
+      (do
+        (swap! state* (fn [state] (-> state
+                                      (update :clicks inc)
+                                      (assoc :bg-rgb (cpp/w32.RGB_ (rand-int 255) (rand-int 255) (rand-int 255))))))
+        (cpp/w32.SetWindowTextA hwnd #cpp "You clicked!")
+        0)
+
+      (= msg cpp/WM_DESTROY)
+      (do
+        (cpp/PostQuitMessage 0)
+        (cpp/LRESULT 0))
+
+      :else
+      (cpp/w32.DefWindowProcA hwnd msg wParam lParam))))
+
+(defn -main [& _]
+  ;; Step 1: Get module handle
+  (let [hInstance (cpp/w32.GetModuleHandleA cpp/nullptr)
+        className "JankWindow"
+        ;; Step 2: Create class
+        wc (cpp/w32.WNDCLASS hInstance, className, cpp/w32.JankWndProc)]
+
+    ;; Step 3: Register the class
+    (cpp/w32.RegisterClassA (cpp/& wc))
+
+    ;; Step 4: Create the window and set our handler
+    (let [hwnd (cpp/w32.CreateWindowExA
+                0                       ;; exStyle
+                className               ;; className
+                "Hello from jank"       ;; windowName
+                cpp/WS_OVERLAPPEDWINDOW ;; style
+                cpp/CW_USEDEFAULT       ;; x
+                cpp/CW_USEDEFAULT       ;; y
+                800
+                600
+                cpp/nullptr             ;; parent
+                cpp/nullptr             ;; menu
+                hInstance               ;; instance
+                cpp/nullptr)            ;; param
+          handler wndproc]
+      (cpp/w32.SetWindowLongPtrA hwnd cpp/GWLP_USERDATA handler)
+
+      ;; Step 5: Show and update
+      (cpp/w32.ShowWindow hwnd cpp/SW_SHOW)
+      (cpp/UpdateWindow hwnd)
+      (cpp/SetTimer hwnd 1 15 cpp/nullptr)
+
+      ;; Step 6: Message loop
+      (let [msg (cpp/MSG.)]
+        (loop [ret (cpp/w32.GetMessageA (cpp/& msg) cpp/nullptr 0 0)]
+          (when (> ret 0) ;; only >0 means a real message
+            (cpp/w32.UpdateWindow hwnd)
+            (cpp/w32.TranslateMessage (cpp/& msg))
+            (cpp/w32.DispatchMessageA (cpp/& msg))
+            (recur (cpp/w32.GetMessageA (cpp/& msg) cpp/nullptr 0 0))))))))
+
+(-main)
+
+
