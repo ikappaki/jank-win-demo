@@ -1,6 +1,7 @@
-;; Jank windows native demo with bouncing text
+(ns demo
+  "Jank windows native demo with bouncing text.")
 
-(include "./win.hpp")
+(include "./demo.hpp")
 
 (def state* (atom {:clicks 0 :x 50 :y 50 :dx 2 :dy 1}))
 
@@ -33,7 +34,7 @@
       (do
         (swap! state* (fn [state] (-> state
                                       (update :clicks inc)
-                                      (assoc :bg-rgb (cpp/w32.RGB_ (rand-int 255) (rand-int 255) (rand-int 255))))))
+                                      (assoc :bg-rgb (cpp/demo.RGB_ (rand-int 255) (rand-int 255) (rand-int 255))))))
         (cpp/SetWindowTextA hwnd #cpp "You clicked!")
         0)
 
@@ -50,7 +51,7 @@
   (let [hInstance (cpp/GetModuleHandleA cpp/nullptr)
         className "JankWindow"
         ;; Step 2: Create class
-        wc (cpp/w32.WNDCLASS hInstance, className, cpp/w32.JankWndProc)]
+        wc (cpp/demo.WNDCLASS hInstance, className, cpp/demo.JankWndProc)]
 
     ;; Step 3: Register the class
     (cpp/RegisterClassA (cpp/& wc))
@@ -70,7 +71,7 @@
                 hInstance               ;; instance
                 cpp/nullptr)            ;; param
           handler wndproc]
-      (cpp/w32.SetWindowLongPtrA hwnd cpp/GWLP_USERDATA handler)
+      (cpp/demo.SetWindowLongPtrA hwnd cpp/GWLP_USERDATA handler)
 
       ;; Step 5: Show and update
       (cpp/ShowWindow hwnd cpp/SW_SHOW)

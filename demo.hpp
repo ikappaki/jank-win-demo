@@ -1,6 +1,6 @@
 #include <windows.h>
 
-namespace w32 {
+namespace demo {
 
   // -----------------------------------
   // Generic jank window handler support

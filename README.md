@@ -19,5 +19,5 @@ Install **jank** on Windows by either:
 Once `jank` is installed:
 
 ```bash
-jank run win.jank
+jank run demo.jank
 ```
